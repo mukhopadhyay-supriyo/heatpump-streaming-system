@@ -10,6 +10,7 @@ import datetime
 import hashlib
 from dotenv import load_dotenv
 import os
+from typing import Dict
 
 # AWS Credentials -->
 ACCESS_KEY = os.getenv("ACCESS_KEY")
@@ -29,7 +30,7 @@ session = boto3.Session(
 kinesis = session.client("kinesis", region_name=REGION)
 
 # Specify mqtt details.
-broker = "ec2-51-20-252-192.eu-north-1.compute.amazonaws.com"
+broker = "ec2-51-21-3-129.eu-north-1.compute.amazonaws.com"
 port = 1883
 topic = "NTC/data/transmit-EP03"
 client_id = f"python-mqtt-{random.randint(0, 1000)}"
@@ -96,7 +97,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
             {
                 "message": "Failed to delete data stream in consumer pipeline",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
     # Use the `create_stream()` method from the client and pass the data stream name and the shard count.
@@ -122,7 +123,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
         if status == "ACTIVE":
             logging.info('Stream "{}" has been succesfully created'.format(stream_name))
             # Reducing the data retension time to 2 hrs, to reduce cost
-            if status["StreamDescription"]["RetentionPeriodHours"] > 2:
+            if status["StreamDescription"]["RetentionPeriodHours"] > 2:  # type: ignore
                 kinesis.decrease_stream_retention_period(
                     StreamName=stream_name,
                     RetentionPeriodHours=2,
@@ -135,7 +136,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
             {
                 "message": "Error creating kinesis stream",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -158,7 +159,7 @@ def kinesis_stream(data_record) -> None:
                 "message": "Error producing record",
                 "error": str(e),
                 "record": data_record,
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
         return
@@ -299,7 +300,7 @@ def msgExtraction(_payloadHexArray_):
                             __hexCollectFlag__ = 0
 
                     elif byteCounter == (dataList[2] - 2):
-                        dataList.append(int(x, 16))
+                        dataList.append(int(x, 16))  # type: ignore
 
             byteCounter = byteCounter + 1
         return dataList
@@ -309,7 +310,7 @@ def msgExtraction(_payloadHexArray_):
             {
                 "Message": "Failed to transform hex to decimal: ",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -317,7 +318,7 @@ def msgExtraction(_payloadHexArray_):
             {
                 "Message": "Failed to transform hex to decimal: ",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -336,7 +337,7 @@ def generate_event_id(deviceid, timestamp):
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def datasource_transformation(dataList) -> str:
+def datasource_transformation(dataList) -> Dict:
     deviceidAscii = [dataList[val] for val in range(2, len(dataList) - 19)]
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
@@ -374,7 +375,7 @@ def datasource_transformation(dataList) -> str:
             {
                 "Message": "failed to receive complete dataframe: ",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -382,9 +383,11 @@ def datasource_transformation(dataList) -> str:
             {
                 "Message": "failed to receive complete dataframe: ",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
+    finally:
+        return json_data
 
 
 def on_message(client, userdata, msg):
@@ -407,7 +410,7 @@ def on_message(client, userdata, msg):
 def connect_mqtt():
     # For paho-mqtt 2.0.0, you need to set callback_api_version. and also set the client ID
     _mqtt_client = mqtt_client.Client(
-        callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2,
+        callback_api_version=mqtt_client.CallbackAPIVersion.VERSION2,  # pyright: ignore[reportPrivateImportUsage]
         client_id=client_id,
     )
     # if MQTT is setup with username and password then use the below line
