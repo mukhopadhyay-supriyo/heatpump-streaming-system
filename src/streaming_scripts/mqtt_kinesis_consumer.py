@@ -12,6 +12,7 @@ import hashlib
 from mysql.connector.errors import DatabaseError
 from dotenv import load_dotenv
 import os
+from typing import Dict, List
 
 load_dotenv()
 
@@ -82,7 +83,7 @@ def is_stream_ready(stream_name: str) -> None:
     return response["StreamDescription"]["StreamStatus"] == "ACTIVE"
 
 
-def bucketNameValidation(BucketName: str = None) -> int:
+def bucketNameValidation(BucketName: str = "") -> int:
     val = 0
     try:
         for bucket in s3Resource.buckets.all():
@@ -101,9 +102,11 @@ def bucketNameValidation(BucketName: str = None) -> int:
                 "error": str(e),
             }
         )
+    finally:
+        return val
 
 
-def createBucket(bucketName: str = None, region: str = "eu-north-1") -> None:
+def createBucket(bucketName: str = "", region: str = "eu-north-1") -> None:
     """Create an S3 bucket in a specified region
 
     If a region is not specified, the bucket is created in the S3 default
@@ -128,7 +131,7 @@ def createBucket(bucketName: str = None, region: str = "eu-north-1") -> None:
             {
                 "message": "Error creating s3 bucket",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -312,7 +315,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
             {
                 "message": "Failed to delete data stream in consumer pipeline",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -339,7 +342,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
         if status == "ACTIVE":
             logging.info('Stream "{}" has been succesfully created'.format(stream_name))
             # Reducing the data retension time to 2 hrs, to reduce cost
-            if status["StreamDescription"]["RetentionPeriodHours"] > 2:
+            if status["StreamDescription"]["RetentionPeriodHours"] > 2:  # type: ignore
                 kinesis.decrease_stream_retention_period(
                     StreamName=stream_name,
                     RetentionPeriodHours=2,
@@ -352,7 +355,7 @@ def create_kinesis_data_stream(stream_name: str, shard_count: int = 2) -> None:
             {
                 "message": "Error creating kinesis stream",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
 
@@ -368,7 +371,7 @@ class ShardIteratorPair:
         self.iterator = iterator
 
 
-def fetch_shards_and_iterators(kinesis, stream_name: str) -> list:
+def fetch_shards_and_iterators(kinesis, stream_name: str) -> List:
     """This function retrieves a list of shard iterators for the specified
     Kinesis stream. It iterates over all shards in the stream, retrieves
     their iterators using "LATEST" as the iterator type (Start reading just after the most recent record in the
@@ -408,9 +411,10 @@ def fetch_shards_and_iterators(kinesis, stream_name: str) -> list:
     return shard_iterators
 
 
-def register_consumer(kinesis, kinesis_source_stream: str = "") -> dict:
+def register_consumer(kinesis, kinesis_source_stream: str = "") -> Dict:
     consumer_name = f"amzn-consumer-{str(int(random.random() * 10))}"
     streamARN = f"arn:aws:kinesis:{REGION}:{ACCOUNT_ID}:stream/{kinesis_source_stream}"
+    consumer_reg_res = {}
     try:
         consumer_reg_res = kinesis.register_stream_consumer(
             StreamARN=streamARN,
@@ -423,18 +427,20 @@ def register_consumer(kinesis, kinesis_source_stream: str = "") -> dict:
             {
                 "message": "Error registering kinesis consumer",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
         kinesis.deregister_stream_consumer(
             StreamARN=streamARN,
             ConsumerName=consumer_name,
         )
+    finally:
+        return consumer_reg_res
 
 
 def consumer_subscrition(
     kinesis, shard_iterators, kinesis_source_stream, consumer_reg_res
-) -> dict:
+) -> Dict:
     consumer_sub_res = {}
     try:
         for shard_itr in shard_iterators:
@@ -451,14 +457,16 @@ def consumer_subscrition(
             {
                 "message": "Error consumer shard subscriptions",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
+    finally:
+        return consumer_sub_res
 
 
 def rds_connection(
     host: str, database: str, username: str, password: str, port: int
-) -> dict:
+) -> Dict:
     dict = {}
     retry = 0
     try:
@@ -466,11 +474,11 @@ def rds_connection(
             host=host, database=database, user=username, password=password, port=port
         )
         if connection.is_connected():
-            connection.autocommit = False
+            connection.autocommit = False  # type: ignore
             db_Info = connection.get_server_info()
             logging.info("Connected to MySQL Server version " + str(db_Info))
             cursor = connection.cursor()
-            connection.autocommit = True
+            connection.autocommit = True  # type: ignore
             dict["cursor"] = cursor
             dict["connection"] = connection
             return dict
@@ -479,13 +487,12 @@ def rds_connection(
             if retry != 5:
                 logging.warning("retry database connection :" + str(retry))
                 retry += 1
-                rds_connection()
+                rds_connection(host, database, username, password, port)
             else:
                 logging.error(
                     {
                         "message": f"Failed to connect to {database} check credentials !!",
-                        "error": str(e),
-                        "line": format(sys.exc_info()[-1].tb_lineno),
+                        "line": format(sys.exc_info()[-1].tb_lineno),  # type: ignore
                     }
                 )
 
@@ -494,12 +501,14 @@ def rds_connection(
             {
                 "message": "Failed to connect to RDS database",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
+    finally:
+        return dict
 
 
-def rds_put_records(rd_connection_obj: dict, data: json) -> int:
+def rds_put_records(rd_connection_obj: dict, data) -> int:
 
     try:
         insert_query = f'INSERT INTO `ep011-db`.`heatpump_data` (`Record_Id`,`Device_Id`, `Data_Length`, `AC_Input_0`,\
@@ -521,19 +530,19 @@ def rds_put_records(rd_connection_obj: dict, data: json) -> int:
             {
                 "message": "Error executing insert query ",
                 "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
+                "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
         return 0
-    except DatabaseError as e:
-        logging.error(
-            {
-                "message": "Error executing insert query ",
-                "error": str(e),
-                "line": format(sys.exc_info()[-1].tb_lineno),
-            }
-        )
-        raise
+    # except DatabaseError as e:
+    #     logging.error(
+    #         {
+    #             "message": "Error executing insert query ",
+    #             "error": str(e),
+    #             "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
+    #         }
+    #     )
+    #     raise
     return 1
 
 
@@ -580,7 +589,7 @@ def poll_shards(
                     except DatabaseError as e:
                         rds_connection = rds_connection(
                             rds_host, rds_database, rds_username, rds_password, rds_port
-                        )
+                        )  # type: ignore
                         insert_result = rds_put_records(
                             rds_connection, consumer_response
                         )
@@ -610,7 +619,7 @@ def poll_shards(
                     {
                         "message": "Failed to stream data in consumer pipeline",
                         "error": str(e),
-                        "line": format(sys.exc_info()[-1].tb_lineno),
+                        "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
                     }
                 )
 
@@ -618,7 +627,7 @@ def poll_shards(
                     {
                         "message": "Failed to stream data in consumer pipeline",
                         "error": str(e),
-                        "line": format(sys.exc_info()[-1].tb_lineno),
+                        "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
                     }
                 )
 
@@ -627,7 +636,7 @@ def poll_shards(
 
 def main():
     logging.info("Starting GetRecords Consumer")
-    createBucket(bucketName="amzn-ep011-s3-bucket", region=REGION)
+    createBucket(bucketName="amzn-ep011-s3-bucket", region=str(REGION))
     create_kinesis_data_stream(stream_name=kinesis_dest_stream_name, shard_count=1)
     rds_connection_obj = rds_connection(
         rds_host, rds_database, rds_username, rds_password, rds_port
