@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 
+load_dotenv()
+
 # AWS Credentials -->
 ACCESS_KEY = os.getenv("ACCESS_KEY")
 SECRETE_ACCESS_KEY = os.getenv("SECRETE_ACCESS_KEY")
@@ -32,7 +34,7 @@ kinesis = session.client("kinesis", region_name=REGION)
 # Specify mqtt details.
 broker = "ec2-51-21-3-129.eu-north-1.compute.amazonaws.com"
 port = 1883
-topic = "NTC/data/transmit-EP03"
+topic = "NTC/data/transmit-EP011"
 client_id = f"python-mqtt-{random.randint(0, 1000)}"
 # username = 'emqx'
 # password = 'public'
@@ -221,6 +223,7 @@ def extract_deviceid(ascii_array, dataList):
 
 
 def msgExtraction(_payloadHexArray_):
+    # print(len(_payloadHexArray_))
     _usignedCharFlag__ = 0
     _usignedShortFlag__ = 0
     _signedCharFlag__ = 0
@@ -233,79 +236,88 @@ def msgExtraction(_payloadHexArray_):
     __hexCollectFlag__ = 0
     byteCounter = 0
     try:
-        for x in range(0, len(_payloadHexArray_)):
-            if byteCounter < 26:
-                if byteCounter < 2:
-                    dataList.append(int(_payloadHexArray_[x], 16))
+        if len(_payloadHexArray_) == 179:
+            for x in range(0, len(_payloadHexArray_)):
+                if byteCounter < 26:
+                    if byteCounter < 2:
+                        dataList.append(int(_payloadHexArray_[x], 16))
+                    else:
+                        ascii_array.append(int(_payloadHexArray_[x], 16))
                 else:
-                    ascii_array.append(int(_payloadHexArray_[x], 16))
-            else:
-                if byteCounter == 26:
-                    dataList = extract_deviceid(ascii_array, dataList)
-                if (
-                    int(_payloadHexArray_[x], 16) == SIGNED_CHAR
-                ) and __hexCollectFlag__ == 0:
-                    _signedCharFlag__ = 1
-                    _usignedCharFlag__ = 0
-                    __hexCollectFlag__ = 1
-                elif (
-                    int(_payloadHexArray_[x], 16) == UNSIGNED_CHAR
-                ) and __hexCollectFlag__ == 0:
-                    _usignedCharFlag__ = 1
-                    _signedCharFlag__ = 0
-                    __hexCollectFlag__ = 1
-                elif (
-                    int(_payloadHexArray_[x], 16) == SIGNED_SHORT
-                ) and __hexCollectFlag__ == 0:
-                    _signedShortFlag__ = 1
-                    _usignedShortFlag__ = 0
-                    __hexCollectFlag__ = 1
-                elif (
-                    int(_payloadHexArray_[x], 16) == UNSIGNED_SHORT
-                ) and __hexCollectFlag__ == 0:
-                    _usignedShortFlag__ = 1
-                    _signedShortFlag__ = 0
-                    __hexCollectFlag__ = 1
-                else:
-                    if _usignedCharFlag__ == 1:
-                        __usignedString__ = __usignedString__ + _payloadHexArray_[x]
-                        if len(__usignedString__) == 2:
-                            dataList.append(hex_to_unsigned_char(__usignedString__))
-                            __usignedString__ = ""
-                            _usignedCharFlag__ = 0
-                            __hexCollectFlag__ = 0
+                    if byteCounter == 26:
+                        dataList = extract_deviceid(ascii_array, dataList)
 
-                    elif _signedCharFlag__ == 1:
-                        __signedString__ = __signedString__ + _payloadHexArray_[x]
-                        if len(__signedString__) == 2:
-                            dataList.append(hex_to_signed_char(__signedString__))
-                            __signedString__ = ""
-                            _signedCharFlag__ = 0
-                            __hexCollectFlag__ = 0
+                    if (
+                        int(_payloadHexArray_[x], 16) == SIGNED_CHAR
+                    ) and __hexCollectFlag__ == 0:
+                        _signedCharFlag__ = 1
+                        _usignedCharFlag__ = 0
+                        __hexCollectFlag__ = 1
+                    elif (
+                        int(_payloadHexArray_[x], 16) == UNSIGNED_CHAR
+                    ) and __hexCollectFlag__ == 0:
+                        _usignedCharFlag__ = 1
+                        _signedCharFlag__ = 0
+                        __hexCollectFlag__ = 1
+                    elif (
+                        int(_payloadHexArray_[x], 16) == SIGNED_SHORT
+                    ) and __hexCollectFlag__ == 0:
+                        _signedShortFlag__ = 1
+                        _usignedShortFlag__ = 0
+                        __hexCollectFlag__ = 1
+                    elif (
+                        int(_payloadHexArray_[x], 16) == UNSIGNED_SHORT
+                    ) and __hexCollectFlag__ == 0:
+                        _usignedShortFlag__ = 1
+                        _signedShortFlag__ = 0
+                        __hexCollectFlag__ = 1
+                    else:
+                        if _usignedCharFlag__ == 1:
+                            __usignedString__ = __usignedString__ + _payloadHexArray_[x]
+                            if len(__usignedString__) == 2:
+                                dataList.append(hex_to_unsigned_char(__usignedString__))
+                                __usignedString__ = ""
+                                _usignedCharFlag__ = 0
+                                __hexCollectFlag__ = 0
 
-                    elif _usignedShortFlag__ == 1:
-                        __usignedString__ = __usignedString__ + _payloadHexArray_[x]
-                        if len(__usignedString__) == 4:
-                            dataList.append(hex_to_unsigned_number(__usignedString__))
-                            __usignedString__ = ""
-                            _usignedShortFlag__ = 0
-                            __hexCollectFlag__ = 0
+                        elif _signedCharFlag__ == 1:
+                            __signedString__ = __signedString__ + _payloadHexArray_[x]
+                            if len(__signedString__) == 2:
+                                dataList.append(hex_to_signed_char(__signedString__))
+                                __signedString__ = ""
+                                _signedCharFlag__ = 0
+                                __hexCollectFlag__ = 0
 
-                    elif _signedShortFlag__ == 1:
-                        __signedString__ = __signedString__ + _payloadHexArray_[x]
-                        if len(__signedString__) == 4:
-                            dataList.append(hex_to_signed_number(__signedString__))
-                            __signedString__ = ""
-                            _signedShortFlag__ = 0
-                            __hexCollectFlag__ = 0
+                        elif _usignedShortFlag__ == 1:
+                            __usignedString__ = __usignedString__ + _payloadHexArray_[x]
+                            if len(__usignedString__) == 4:
+                                dataList.append(
+                                    hex_to_unsigned_number(__usignedString__)
+                                )
+                                __usignedString__ = ""
+                                _usignedShortFlag__ = 0
+                                __hexCollectFlag__ = 0
 
-                    elif byteCounter == (dataList[2] - 2):
-                        dataList.append(int(x, 16))  # type: ignore
+                        elif _signedShortFlag__ == 1:
+                            __signedString__ = __signedString__ + _payloadHexArray_[x]
+                            if len(__signedString__) == 4:
+                                dataList.append(hex_to_signed_number(__signedString__))
+                                __signedString__ = ""
+                                _signedShortFlag__ = 0
+                                __hexCollectFlag__ = 0
 
-            byteCounter = byteCounter + 1
-        return dataList
+                        elif byteCounter == (dataList[2] - 2):
+                            dataList.append(int(x, 16))  # type: ignore
+
+                byteCounter = byteCounter + 1
+            # return dataList
+        else:
+            raise Exception(
+                "Cannot process this data, as the length is less than expected length of 179 bytes"
+            )
 
     except Exception as e:
+        dataList = []
         logging.error(
             {
                 "Message": "Failed to transform hex to decimal: ",
@@ -321,6 +333,8 @@ def msgExtraction(_payloadHexArray_):
                 "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
             }
         )
+    finally:
+        return dataList
 
     # if len(dataList) > 4:
     #     try:
@@ -338,7 +352,7 @@ def generate_event_id(deviceid, timestamp):
 
 
 def datasource_transformation(dataList) -> Dict:
-    deviceidAscii = [dataList[val] for val in range(2, len(dataList) - 19)]
+    deviceidAscii = [dataList[val] for val in range(2, 14)]
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
     timestamp = datetime.datetime.now()
@@ -350,11 +364,11 @@ def datasource_transformation(dataList) -> Dict:
             "AC_Input_0": dataList[14],
             "AC_Input_1": dataList[15],
             "AC_Input_2": dataList[16],
-            "T1": dataList[17],
-            "T2": dataList[18],
-            "T3": dataList[19],
-            "T4": dataList[20],
-            "T5": dataList[21],
+            "Suction_Temperature": dataList[17],
+            "Discharge_Temperature": dataList[18],
+            "EXP_IN_Temperature": dataList[19],
+            "EXP_OUT_Temperature": dataList[20],
+            "Ambient_Temperture": dataList[21],
             "T6": dataList[22],
             "T7": dataList[23],
             "PCB_NTC": dataList[24],
@@ -366,9 +380,47 @@ def datasource_transformation(dataList) -> Dict:
             "Fan_Tach": dataList[30],
             "Stepper_Position": dataList[31],
             "Flow_Rate": dataList[32],
+            "Comp_Speed_Target": dataList[33],
+            "Comp_Speed_Actual": dataList[34],
+            "Discharge_Pressure": dataList[35],
+            "Suction_Pressure": dataList[36],
+            "Fan_Speed_Target": dataList[37],
+            "Superheat": dataList[38],
+            "Subcool": dataList[39],
+            "Pump_Speed_Target": dataList[40],
+            "System_Flow_Rate": dataList[41],
+            "State_Changes_Per_6s": dataList[42],
+            "Flow_Rate_L_Per_Min_Times_10": dataList[43],
+            "Sika_Flow_Rate": dataList[44],
+            "Evaporation_Temperature": dataList[45],
+            "Condensing_Temperature": dataList[46],
+            "System_Flow_Temperature": dataList[47],
+            "System_Return_Temperature": dataList[48],
+            "P_Flow_Setpoint": dataList[49],
+            "D_Ana_Val": dataList[50],
+            "Superheat_Error": dataList[51],
+            "Discharge_Temperature_Error": dataList[52],
+            "P_EEV_Start_Position": dataList[53],
+            "Fan_State": dataList[54],
+            "Comp_State": dataList[55],
+            "Comp_Timer": dataList[56],
+            "EEV_State": dataList[57],
+            "EEV_Timer": dataList[58],
+            "EEV_Threshold_Timer": dataList[59],
+            "Pump_APP_State": dataList[60],
+            "Pump_Timer": dataList[61],
+            "Demand_1": dataList[62],
+            "P_EEV_Open_Time": dataList[63],
+            "P_KP": dataList[64],
+            "P_Superheat_Error_Scalor": dataList[65],
+            "P_EEV_Threshold_Check_Time": dataList[66],
+            "P_Fan_Auto": dataList[67],
+            "pump_mode": dataList[68],
+            "pump_rpm_set": dataList[69],
             "Time_stamp": f"{timestamp}",
             "Event_Id": f"{generate_event_id(deviceid, timestamp)}",
         }
+        # print(len(json_data))
         return json_data
     except Exception as e:
         logging.error(
@@ -399,12 +451,13 @@ def on_message(client, userdata, msg):
     for j in range(0, len(payload), 2):
         _payloadHexArray_.append(payload[j : j + 2])
     dataList = msgExtraction(_payloadHexArray_)
-    json_data = datasource_transformation(dataList=dataList)
-    logging.info(json_data)
-    if json_data != None and sec_counter == 2:
-        kinesis_stream(json_data)
-        sec_counter = 0
-    # dataList = []
+    if len(dataList) > 0:
+        json_data = datasource_transformation(dataList=dataList)
+        # logging.info(json_data)
+        if json_data:
+            kinesis_stream(json_data)
+            sec_counter = 0
+    dataList = []
 
 
 def connect_mqtt():
