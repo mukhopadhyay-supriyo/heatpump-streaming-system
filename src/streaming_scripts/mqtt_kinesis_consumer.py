@@ -13,6 +13,7 @@ from mysql.connector.errors import DatabaseError
 from dotenv import load_dotenv
 import os
 from typing import Dict, List
+import datetime
 
 load_dotenv()
 
@@ -221,11 +222,11 @@ def create_kinesis_firehose(
                     "AC_Input_0",
                     "AC_Input_1",
                     "AC_Input_2",
-                    "T1",
-                    "T2",
-                    "T3",
-                    "T4",
-                    "T5",
+                    "Suction_Temperature",
+                    "Discharge_Temperature",
+                    "EXP_IN_Temperature",
+                    "EXP_OUT_Temperature",
+                    "Ambient_Temperture",
                     "T6",
                     "T7",
                     "PCB NTC",
@@ -237,6 +238,43 @@ def create_kinesis_firehose(
                     "Fan_Tach",
                     "Stepper_Position",
                     "Flow_Rate",
+                    "Comp_Speed_Target",
+                    "Comp_Speed_Actual",
+                    "Discharge_Pressure",
+                    "Suction_Pressure",
+                    "Fan_Speed_Target",
+                    "Superheat",
+                    "Subcool",
+                    "Pump_Speed_Target",
+                    "System_Flow_Rate",
+                    "State_Changes_Per_6s",
+                    "Flow_Rate_L_Per_Min_Times_10",
+                    "Sika_Flow_Rate",
+                    "Evaporation_Temperature",
+                    "Condensing_Temperature",
+                    "System_Flow_Temperature",
+                    "System_Return_Temperature",
+                    "P_Flow_Setpoint",
+                    "D_Ana_Val",
+                    "Superheat_Error",
+                    "Discharge_Temperature_Error",
+                    "P_EEV_Start_Position",
+                    "Fan_State",
+                    "Comp_State",
+                    "Comp_Timer",
+                    "EEV_State",
+                    "EEV_Timer",
+                    "EEV_Timer",
+                    "Pump_APP_State",
+                    "Pump_Timer",
+                    "Demand_1",
+                    "P_EEV_Open_Time",
+                    "P_KP",
+                    "P_Superheat_Error_Scalor",
+                    "P_EEV_Threshold_Check_Time",
+                    "P_Fan_Auto",
+                    "pump_mode",
+                    "pump_rpm_set",
                     "Time-stamp",
                 ]
             },
@@ -512,17 +550,29 @@ def rds_put_records(rd_connection_obj: dict, data) -> int:
 
     try:
         insert_query = f'INSERT INTO `ep011-db`.`heatpump_data` (`Record_Id`,`Device_Id`, `Data_Length`, `AC_Input_0`,\
-                            `AC_Input_1`, `AC_Input_2`,`T1`, `T2`, `T3`, `T4`, `T5`, `T6`, `T7`,\
+                            `AC_Input_1`, `AC_Input_2`,`Suction_Temperature`, `Discharge_Temperature`, `EXP_IN_Temperature`, `EXP_OUT_Temperature`, `Ambient_Temperture`, `T6`, `T7`,\
                             `PCB_NTC`, `Flow_1`, `Flow_2`, `Output_Flag_1`, `Output_Flag_2`, `Output_Flag_3`,\
-                            `Fan_Tach`, `Stepper_Position`, `Flow_Rate`, `Time_stamp`, `SequenceNumber`) \
+                            `Fan_Tach`, `Stepper_Position`, `Flow_Rate`, `Comp_Speed_Target`, `Comp_Speed_Actual`, `Discharge_Pressure`,\
+                            `Suction_Pressure`, `Fan_Speed_Target`, `Superheat`, `Subcool`, `Pump_Speed_Target`, `System_Flow_Rate`, `State_Changes_Per_6s`,\
+                            `Flow_Rate_L_Per_Min_Times_10`, `Sika_Flow_Rate`, `Evaporation_Temperature`, `Condensing_Temperature`, `System_Flow_Temperature`,\
+                            `System_Return_Temperature`, `P_Flow_Setpoint`, `D_Ana_Val`, `Superheat_Error`, `Discharge_Temperature_Error`, `P_EEV_Start_Position`,\
+                            `Fan_State`, `Comp_State`, `Comp_Timer`, `EEV_State`, `EEV_Timer`, `EEV_Threshold_Timer`, `Pump_APP_State`, `Pump_Timer`, `Demand_1`, `P_EEV_Open_Time`,\
+                            `P_KP`, `P_Superheat_Error_Scalor`, `P_EEV_Threshold_Check_Time`, `P_Fan_Auto`, `pump_mode`, `pump_rpm_set` ,`Time_stamp`, `SequenceNumber`) \
                             VALUES("{data["Record_Id"]}",\
                             "{data["Device_Id"]}", {data["Data_Length"]}, \
                             {data["AC_Input_0"]}, {data["AC_Input_1"]}, {data["AC_Input_2"]},\
-                            {data["T1"]} , {data["T2"]}, {data["T3"]}, {data["T4"]} , {data["T5"]}, {data["T6"]}, {data["T7"]},\
+                            {data["Suction_Temperature"]} , {data["Discharge_Temperature"]}, {data["EXP_IN_Temperature"]}, {data["EXP_OUT_Temperature"]} , {data["Ambient_Temperture"]}, {data["T6"]}, {data["T7"]},\
                             {data["PCB_NTC"]} , {data["Flow_1"]}, {data["Flow_2"]}, {data["Output_Flag_1"]} , {data["Output_Flag_2"]}, {data["Output_Flag_3"]},\
-                            {data["Fan_Tach"]} , {data["Stepper_Position"]}, {data["Flow_Rate"]}, \'{data["Time_stamp"]}\', "{data["SequenceNumber"]}")'
-        rd_connection_obj["cursor"].execute(insert_query)
+                            {data["Fan_Tach"]} , {data["Stepper_Position"]}, {data["Flow_Rate"]}, {data["Comp_Speed_Target"]}, {data["Comp_Speed_Actual"]},\
+                            {data["Discharge_Pressure"]}, {data["Suction_Pressure"]}, {data["Fan_Speed_Target"]}, {data["Superheat"]}, {data["Subcool"]}, {data["Pump_Speed_Target"]},\
+                            {data["System_Flow_Rate"]}, {data["State_Changes_Per_6s"]}, {data["Flow_Rate_L_Per_Min_Times_10"]}, {data["Sika_Flow_Rate"]}, {data["Evaporation_Temperature"]},\
+                            {data["Condensing_Temperature"]}, {data["System_Flow_Temperature"]}, {data["System_Return_Temperature"]}, {data["P_Flow_Setpoint"]}, {data["D_Ana_Val"]},\
+                            {data["Superheat_Error"]}, {data["Discharge_Temperature_Error"]}, {data["P_EEV_Start_Position"]}, {data["Fan_State"]}, {data["Comp_State"]}, {data["Comp_Timer"]},\
+                            {data["EEV_State"]}, {data["EEV_Timer"]}, {data["EEV_Threshold_Timer"]}, {data["Pump_APP_State"]}, {data["Pump_Timer"]}, {data["Demand_1"]}, {data["P_EEV_Open_Time"]},\
+                            {data["P_KP"]}, {data["P_Superheat_Error_Scalor"]}, {data["P_EEV_Threshold_Check_Time"]}, {data["P_Fan_Auto"]}, {data["pump_mode"]}, {data["pump_rpm_set"]},\
+                            \'{datetime.datetime.now()}\', "{data["SequenceNumber"]}")'
         # print(insert_query)
+        rd_connection_obj["cursor"].execute(insert_query)
         rd_connection_obj["connection"].commit()
 
     except Exception as e:
@@ -562,30 +612,32 @@ def poll_shards(
     logging.info(f"Polling shards---")
     consumer_response = ""
     records_response = None
-    min_counter = 0
+    sec_counter = 0
     while True:
         for shard_itr in shard_iterators:
+            sec_counter = sec_counter + 1
             try:
                 records_response = kinesis.get_records(
                     ShardIterator=shard_itr.iterator, Limit=10000
                 )
+                # print(records_response)
                 for record in records_response["Records"]:
-                    min_counter = min_counter + 1
+
                     consumer_response = json.loads(record["Data"].decode("utf-8"))
                     try:
                         consumer_response["SequenceNumber"] = (
                             # hashlib.sha256(record["SequenceNumber"].encode()).hexdigest() +
                             consumer_response["Event_Id"]
                         )
-                        if min_counter >= 10:
+                        if sec_counter >= 5:
                             insert_result = rds_put_records(
                                 rds_connection, consumer_response
                             )
                             if insert_result == 1:
                                 logging.info(
-                                    f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {min_counter} mins counter ---"
+                                    f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {sec_counter/10} sec counter ---"
                                 )
-                            min_counter = 0
+                            sec_counter = 0
                     except DatabaseError as e:
                         rds_connection = rds_connection(
                             rds_host, rds_database, rds_username, rds_password, rds_port
@@ -595,9 +647,9 @@ def poll_shards(
                         )
                         if insert_result == 1:
                             logging.debug(
-                                f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {min_counter} mins counter ---"
+                                f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {sec_counter/10} sec counter ---"
                             )
-                        min_counter = 0
+                        sec_counter = 0
                         continue
                         # return
                         # else:
@@ -607,9 +659,9 @@ def poll_shards(
                         Data=json.dumps(consumer_response).encode("utf-8"),
                         PartitionKey=consumer_response["Device_Id"],
                     )
-                    logging.info(
-                        f"Produced record {response['SequenceNumber']} to Shard {response['ShardId']}"
-                    )
+                    # logging.info(
+                    #     f"Consumer record {response['SequenceNumber']} to Shard {response['ShardId']}"
+                    # )
 
                 if records_response["NextShardIterator"]:
                     shard_itr.iterator = records_response["NextShardIterator"]
@@ -630,8 +682,7 @@ def poll_shards(
                         "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
                     }
                 )
-
-    time.sleep(1)
+        time.sleep(0.1)
 
 
 def main():
