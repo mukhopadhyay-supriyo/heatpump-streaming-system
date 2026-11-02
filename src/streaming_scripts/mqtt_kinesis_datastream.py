@@ -151,9 +151,9 @@ def kinesis_stream(data_record) -> None:
             Data=json.dumps(data_record).encode("utf-8"),
             PartitionKey=data_record["Device_Id"],
         )
-        logging.info(
-            f"Produced record {response['SequenceNumber']} to Shard {response['ShardId']}"
-        )
+        # logging.info(
+        #     f"Produced record {response['SequenceNumber']} to Shard {response['ShardId']}"
+        # )
         return
     except Exception as e:
         logging.error(
@@ -223,7 +223,7 @@ def extract_deviceid(ascii_array, dataList):
 
 
 def msgExtraction(_payloadHexArray_):
-    # print(len(_payloadHexArray_))
+    # print(_payloadHexArray_)
     _usignedCharFlag__ = 0
     _usignedShortFlag__ = 0
     _signedCharFlag__ = 0
@@ -443,8 +443,6 @@ def datasource_transformation(dataList) -> Dict:
 
 
 def on_message(client, userdata, msg):
-    global sec_counter
-    sec_counter = sec_counter + 1
     payload = msg.payload
     _payloadHexArray_ = []
     payload = payload.hex()
@@ -456,7 +454,6 @@ def on_message(client, userdata, msg):
         # logging.info(json_data)
         if json_data:
             kinesis_stream(json_data)
-            sec_counter = 0
     dataList = []
 
 
@@ -477,7 +474,7 @@ def main():
     logging.info("Starting PutRecord Producer")
     create_kinesis_data_stream(stream_name=kinesis_stream_name, shard_count=1)
     _mqtt_client = connect_mqtt()
-    _mqtt_client.subscribe(topic=topic)
+    _mqtt_client.subscribe(topic=topic, qos=1)
     _mqtt_client.on_message = on_message
     logging.info("---- Producer starts sending data -----")
     # logging.disable(logging.INFO)
