@@ -21,6 +21,11 @@ load_dotenv()
 ACCESS_KEY = os.getenv("ACCESS_KEY")
 SECRETE_ACCESS_KEY = os.getenv("SECRETE_ACCESS_KEY")
 REGION = os.getenv("REGION")
+
+POLL_INTERVAL = 0.25  # stays under 5 GetRecords calls/sec per shard
+INSERT_EVERY = (
+    2  # keeps your original "every 4th record" behaviour; remove if unintended
+)
 #################################### AWS ################################################
 
 # Create AWS session with credentials. using boto3 lib
@@ -547,7 +552,6 @@ def rds_connection(
 
 
 def rds_put_records(rd_connection_obj: dict, data) -> int:
-
     try:
         insert_query = f'INSERT INTO `ep011-db`.`heatpump_data` (`Record_Id`,`Device_Id`, `Data_Length`, `AC_Input_0`,\
                             `AC_Input_1`, `AC_Input_2`,`Suction_Temperature`, `Discharge_Temperature`, `EXP_IN_Temperature`, `EXP_OUT_Temperature`, `Ambient_Temperture`, `T6`, `T7`,\
@@ -569,12 +573,11 @@ def rds_put_records(rd_connection_obj: dict, data) -> int:
                             {data["Condensing_Temperature"]}, {data["System_Flow_Temperature"]}, {data["System_Return_Temperature"]}, {data["P_Flow_Setpoint"]}, {data["D_Ana_Val"]},\
                             {data["Superheat_Error"]}, {data["Discharge_Temperature_Error"]}, {data["P_EEV_Start_Position"]}, {data["Fan_State"]}, {data["Comp_State"]}, {data["Comp_Timer"]},\
                             {data["EEV_State"]}, {data["EEV_Timer"]}, {data["EEV_Threshold_Timer"]}, {data["Pump_APP_State"]}, {data["Pump_Timer"]}, {data["Demand_1"]}, {data["P_EEV_Open_Time"]},\
-                            {data["P_KP"]}, {data["P_Superheat_Error_Scalor"]}, {data["P_EEV_Threshold_Check_Time"]}, {data["P_Fan_Auto"]}, {data["pump_mode"]}, {data["pump_rpm_set"]},\
-                            \'{datetime.datetime.now()}\', "{data["SequenceNumber"]}")'
+                            {data["P_KP"]}, {data["P_Superheat_Error_Scalor"]}, {data["P_EEV_Threshold_Check_Time"]}, {data["P_Fan_Auto"]}, {data["pump_mode"]}, {data["pump_rpm_set"]}, \
+                            \'{data["Time_stamp"]}\', "{data["Event_Id"]}")'
         # print(insert_query)
         rd_connection_obj["cursor"].execute(insert_query)
         rd_connection_obj["connection"].commit()
-
     except Exception as e:
         logging.error(
             {
@@ -584,16 +587,38 @@ def rds_put_records(rd_connection_obj: dict, data) -> int:
             }
         )
         return 0
-    # except DatabaseError as e:
-    #     logging.error(
-    #         {
-    #             "message": "Error executing insert query ",
-    #             "error": str(e),
-    #             "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
-    #         }
-    #     )
-    #     raise
     return 1
+
+
+def insert_with_reconnect(conn, event):
+    """Insert; on a DB error reconnect once and retry. Returns the (possibly new) connection."""
+    try:
+        # print(event)
+        rds_put_records(conn, event)
+    except DatabaseError:
+        logging.warning("RDS error, reconnecting", exc_info=True)
+        rds_connection_obj = rds_connection(
+            rds_host, rds_database, rds_username, rds_password, rds_port
+        )
+        rds_put_records(rds_connection_obj, event)
+    return conn
+
+
+def stream_data(events):
+    entries = [
+        {"Data": json.dumps(e).encode("utf-8"), "PartitionKey": e["Device_Id"]}
+        for e in events
+    ]
+    for i in range(0, len(entries), 500):
+        chunk = entries[i : i + 500]
+
+        response = kinesis.put_records(
+            StreamName=kinesis_dest_stream_name, Records=chunk
+        )
+        if not response["FailedRecordCount"]:
+            break
+        else:
+            logging.error("Gave up forwarding %d records", len(chunk))
 
 
 def poll_shards(
@@ -612,82 +637,76 @@ def poll_shards(
     logging.info(f"Polling shards---")
     consumer_response = ""
     records_response = None
-    sec_counter = 0
+    records_since_insert = 0
     while True:
         for shard_itr in shard_iterators:
-            sec_counter = sec_counter + 1
             try:
                 records_response = kinesis.get_records(
                     ShardIterator=shard_itr.iterator, Limit=10000
                 )
-                # print(records_response)
-                for record in records_response["Records"]:
-
-                    consumer_response = json.loads(record["Data"].decode("utf-8"))
-                    try:
-                        consumer_response["SequenceNumber"] = (
-                            # hashlib.sha256(record["SequenceNumber"].encode()).hexdigest() +
-                            consumer_response["Event_Id"]
-                        )
-                        if sec_counter >= 5:
-                            insert_result = rds_put_records(
-                                rds_connection, consumer_response
-                            )
-                            if insert_result == 1:
-                                logging.info(
-                                    f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {sec_counter/10} sec counter ---"
-                                )
-                            sec_counter = 0
-                    except DatabaseError as e:
-                        rds_connection = rds_connection(
-                            rds_host, rds_database, rds_username, rds_password, rds_port
-                        )  # type: ignore
-                        insert_result = rds_put_records(
-                            rds_connection, consumer_response
-                        )
-                        if insert_result == 1:
-                            logging.debug(
-                                f"--- Consumer Record Event-ID{consumer_response["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully with {sec_counter/10} sec counter ---"
-                            )
-                        sec_counter = 0
-                        continue
-                        # return
-                        # else:
-                        #     continue
-                    response = kinesis.put_record(
-                        StreamName=kinesis_dest_stream_name,
-                        Data=json.dumps(consumer_response).encode("utf-8"),
-                        PartitionKey=consumer_response["Device_Id"],
+            except kinesis.exceptions.ExpiredIteratorException:
+                # iterators expire after 5 minutes; resume after the last record handled
+                shard_itr.iterator = kinesis.get_shard_iterator(
+                    StreamName=kinesis_source_stream_name,
+                    ShardId=shard_itr.shard_id,
+                    ShardIteratorType="AFTER_SEQUENCE_NUMBER",
+                    StartingSequenceNumber=shard_itr.last_sequence_number,
+                )["ShardIterator"]
+                continue
+            except Exception:
+                logging.exception("get_records failed for shard %s", shard_itr.shard_id)
+                time.sleep(1)
+                continue
+            events = []
+            for record in records_response["Records"]:
+                # print(record)
+                try:
+                    event = json.loads(record["Data"].decode("utf-8"))
+                    # print(event)
+                    if (
+                        not isinstance(event, dict)
+                        or not {"Event_Id", "Device_Id"} <= event.keys()
+                    ):
+                        event["Event_Id"] = event["Event_Id"]
+                except ValueError:
+                    logging.exception(
+                        "Skipping malformed record %s", record["SequenceNumber"]
                     )
-                    # logging.info(
-                    #     f"Consumer record {response['SequenceNumber']} to Shard {response['ShardId']}"
-                    # )
+                    continue
 
+                events.append(event)
+                shard_itr.last_sequence_number = record["SequenceNumber"]
+                records_since_insert += 1
+                if records_since_insert >= INSERT_EVERY:
+                    records_since_insert = 0
+                    try:
+                        rds_connection = insert_with_reconnect(rds_connection, event)
+                        logging.debug(
+                            f"--- Consumer Record Event-ID{event["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully "
+                        )
+                    except Exception:
+                        # Policy choice: log and keep going. To avoid any DB loss, stop here
+                        # and don't advance the iterator, so the batch is retried.
+                        logging.exception("RDS insert failed for %s", event["Event_Id"])
+
+                if events:
+                    stream_data(events)
+
+                # Advance only after the whole batch was handled
                 if records_response["NextShardIterator"]:
                     shard_itr.iterator = records_response["NextShardIterator"]
+                else:
+                    logging.info(
+                        "Shard %s is closed; no longer polling it", shard_itr.shard_id
+                    )
+                    shard_iterators.remove(shard_itr)
 
-            except Exception as e:
-                logging.error(
-                    {
-                        "message": "Failed to stream data in consumer pipeline",
-                        "error": str(e),
-                        "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
-                    }
-                )
-
-                logging.warning(
-                    {
-                        "message": "Failed to stream data in consumer pipeline",
-                        "error": str(e),
-                        "line": e.__traceback__.tb_lineno if e.__traceback__ else None,
-                    }
-                )
-        time.sleep(0.1)
+        time.sleep(POLL_INTERVAL)
 
 
 def main():
     logging.info("Starting GetRecords Consumer")
-    createBucket(bucketName="amzn-ep011-s3-bucket", region=str(REGION))
+    # createBucket(bucketName="amzn-ep011-s3-bucket", region=str(REGION))
     create_kinesis_data_stream(stream_name=kinesis_dest_stream_name, shard_count=1)
     rds_connection_obj = rds_connection(
         rds_host, rds_database, rds_username, rds_password, rds_port
