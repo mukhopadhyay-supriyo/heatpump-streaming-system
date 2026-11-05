@@ -449,9 +449,9 @@ def on_message(client, userdata, msg):
     for j in range(0, len(payload), 2):
         _payloadHexArray_.append(payload[j : j + 2])
     dataList = msgExtraction(_payloadHexArray_)
-    if len(dataList) > 0:
+    if len(dataList) >= 70:
         json_data = datasource_transformation(dataList=dataList)
-        # logging.info(json_data)
+        # logging.info(len(json_data))
         if json_data:
             kinesis_stream(json_data)
     dataList = []
