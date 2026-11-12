@@ -670,7 +670,8 @@ def poll_shards(
                 try:
                     data = json.loads(record["Data"].decode("utf-8"))
                     event = data["records"]
-                    # print(event)
+                    # print(event[59])
+                    # print(len(SIGNALS))
                     if (
                         not isinstance(event, dict)
                         # or not {"Event_Id", "Device_Id"} <= event.keys()
