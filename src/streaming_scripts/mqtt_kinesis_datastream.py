@@ -356,73 +356,19 @@ def datasource_transformation(dataList) -> Dict:
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
     timestamp = datetime.datetime.now()
+    records = [dataList[1]]
+    records.append(f"{str(timestamp.microsecond) + deviceid}")
+    records.append(f"{deviceid}")
+    records.append
+    for i in range(14, len(dataList)):
+        records.append(dataList[i])
+    records.append(f"{timestamp}")
+    records.append(f"{generate_event_id(deviceid, timestamp)}")
     try:
 
         json_data = {
-            "ts": str(datetime.datetime.now()),
-            "records": [
-                f"{str(timestamp.microsecond) + deviceid}",
-                f"{deviceid}",
-                dataList[1],
-                dataList[14],
-                dataList[15],
-                dataList[16],
-                dataList[17],
-                dataList[18],
-                dataList[19],
-                dataList[20],
-                dataList[21],
-                dataList[22],
-                dataList[23],
-                dataList[24],
-                dataList[25],
-                dataList[26],
-                dataList[27],
-                dataList[28],
-                dataList[29],
-                dataList[30],
-                dataList[31],
-                dataList[32],
-                dataList[33],
-                dataList[34],
-                dataList[35],
-                dataList[36],
-                dataList[37],
-                dataList[38],
-                dataList[39],
-                dataList[40],
-                dataList[41],
-                dataList[42],
-                dataList[43],
-                dataList[44],
-                dataList[45],
-                dataList[46],
-                dataList[47],
-                dataList[48],
-                dataList[49],
-                dataList[50],
-                dataList[51],
-                dataList[52],
-                dataList[53],
-                dataList[54],
-                dataList[55],
-                dataList[56],
-                dataList[57],
-                dataList[58],
-                dataList[59],
-                dataList[60],
-                dataList[61],
-                dataList[62],
-                dataList[63],
-                dataList[64],
-                dataList[65],
-                dataList[66],
-                dataList[67],
-                dataList[68],
-                dataList[69],
-                f"{timestamp}",
-                f"{generate_event_id(deviceid, timestamp)}",
-            ],
+            "ts": str(timestamp),
+            "records": records,
         }
 
         # print(len(json_data))
