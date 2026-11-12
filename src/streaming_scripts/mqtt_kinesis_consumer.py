@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import os
 from typing import Dict, List
 import datetime
+from base_model import SIGNALS
 
 load_dotenv()
 
@@ -554,145 +555,149 @@ def rds_connection(
 def rds_put_records(rd_connection_obj: dict, data) -> int:
     try:
 
-        columns = [
-            "Record_Id",
-            "Device_Id",
-            "Data_Length",
-            "AC_Input_0",
-            "AC_Input_1",
-            "AC_Input_2",
-            "Suction_Temperature",
-            "Discharge_Temperature",
-            "EXP_IN_Temperature",
-            "EXP_OUT_Temperature",
-            "Ambient_Temperture",
-            "T6",
-            "T7",
-            "PCB_NTC",
-            "Flow_1",
-            "Flow_2",
-            "Output_Flag_1",
-            "Output_Flag_2",
-            "Output_Flag_3",
-            "Fan_Tach",
-            "Stepper_Position",
-            "Flow_Rate",
-            "Comp_Speed_Target",
-            "Comp_Speed_Actual",
-            "Discharge_Pressure",
-            "Suction_Pressure",
-            "Fan_Speed_Target",
-            "Superheat",
-            "Subcool",
-            "Pump_Speed_Target",
-            "System_Flow_Rate",
-            "State_Changes_Per_6s",
-            "Flow_Rate_L_Per_Min_Times_10",
-            "Sika_Flow_Rate",
-            "Evaporation_Temperature",
-            "Condensing_Temperature",
-            "System_Flow_Temperature",
-            "System_Return_Temperature",
-            "P_Flow_Setpoint",
-            "D_Ana_Val",
-            "Superheat_Error",
-            "Discharge_Temperature_Error",
-            "P_EEV_Start_Position",
-            "Fan_State",
-            "Comp_State",
-            "Comp_Timer",
-            "EEV_State",
-            "EEV_Timer",
-            "EEV_Threshold_Timer",
-            "Pump_APP_State",
-            "Pump_Timer",
-            "Demand_1",
-            "P_EEV_Open_Time",
-            "P_KP",
-            "P_Superheat_Error_Scalor",
-            "P_EEV_Threshold_Check_Time",
-            "P_Fan_Auto",
-            "pump_mode",
-            "pump_rpm_set",
-            "Time_stamp",
-            "SequenceNumber",
-        ]
+        # columns = [
+        #     "Record_Id",
+        #     "Device_Id",
+        #     "Data_Length",
+        #     "AC_Input_0",
+        #     "AC_Input_1",
+        #     "AC_Input_2",
+        #     "Suction_Temperature",
+        #     "Discharge_Temperature",
+        #     "EXP_IN_Temperature",
+        #     "EXP_OUT_Temperature",
+        #     "Ambient_Temperture",
+        #     "T6",
+        #     "T7",
+        #     "PCB_NTC",
+        #     "Flow_1",
+        #     "Flow_2",
+        #     "Output_Flag_1",
+        #     "Output_Flag_2",
+        #     "Output_Flag_3",
+        #     "Fan_Tach",
+        #     "Stepper_Position",
+        #     "Flow_Rate",
+        #     "Comp_Speed_Target",
+        #     "Comp_Speed_Actual",
+        #     "Discharge_Pressure",
+        #     "Suction_Pressure",
+        #     "Fan_Speed_Target",
+        #     "Superheat",
+        #     "Subcool",
+        #     "Pump_Speed_Target",
+        #     "System_Flow_Rate",
+        #     "State_Changes_Per_6s",
+        #     "Flow_Rate_L_Per_Min_Times_10",
+        #     "Sika_Flow_Rate",
+        #     "Evaporation_Temperature",
+        #     "Condensing_Temperature",
+        #     "System_Flow_Temperature",
+        #     "System_Return_Temperature",
+        #     "P_Flow_Setpoint",
+        #     "D_Ana_Val",
+        #     "Superheat_Error",
+        #     "Discharge_Temperature_Error",
+        #     "P_EEV_Start_Position",
+        #     "Fan_State",
+        #     "Comp_State",
+        #     "Comp_Timer",
+        #     "EEV_State",
+        #     "EEV_Timer",
+        #     "EEV_Threshold_Timer",
+        #     "Pump_APP_State",
+        #     "Pump_Timer",
+        #     "Demand_1",
+        #     "P_EEV_Open_Time",
+        #     "P_KP",
+        #     "P_Superheat_Error_Scalor",
+        #     "P_EEV_Threshold_Check_Time",
+        #     "P_Fan_Auto",
+        #     "pump_mode",
+        #     "pump_rpm_set",
+        #     "Time_stamp",
+        #     "SequenceNumber",
+        # ]
 
-        # Map the database columns to the corresponding dictionary keys.
-        # Event_Id is retained here to match your original code.
-        data_keys = [
-            "Record_Id",
-            "Device_Id",
-            "Data_Length",
-            "AC_Input_0",
-            "AC_Input_1",
-            "AC_Input_2",
-            "Suction_Temperature",
-            "Discharge_Temperature",
-            "EXP_IN_Temperature",
-            "EXP_OUT_Temperature",
-            "Ambient_Temperture",
-            "T6",
-            "T7",
-            "PCB_NTC",
-            "Flow_1",
-            "Flow_2",
-            "Output_Flag_1",
-            "Output_Flag_2",
-            "Output_Flag_3",
-            "Fan_Tach",
-            "Stepper_Position",
-            "Flow_Rate",
-            "Comp_Speed_Target",
-            "Comp_Speed_Actual",
-            "Discharge_Pressure",
-            "Suction_Pressure",
-            "Fan_Speed_Target",
-            "Superheat",
-            "Subcool",
-            "Pump_Speed_Target",
-            "System_Flow_Rate",
-            "State_Changes_Per_6s",
-            "Flow_Rate_L_Per_Min_Times_10",
-            "Sika_Flow_Rate",
-            "Evaporation_Temperature",
-            "Condensing_Temperature",
-            "System_Flow_Temperature",
-            "System_Return_Temperature",
-            "P_Flow_Setpoint",
-            "D_Ana_Val",
-            "Superheat_Error",
-            "Discharge_Temperature_Error",
-            "P_EEV_Start_Position",
-            "Fan_State",
-            "Comp_State",
-            "Comp_Timer",
-            "EEV_State",
-            "EEV_Timer",
-            "EEV_Threshold_Timer",
-            "Pump_APP_State",
-            "Pump_Timer",
-            "Demand_1",
-            "P_EEV_Open_Time",
-            "P_KP",
-            "P_Superheat_Error_Scalor",
-            "P_EEV_Threshold_Check_Time",
-            "P_Fan_Auto",
-            "pump_mode",
-            "pump_rpm_set",
-            "Time_stamp",
-            "Event_Id",
-        ]
+        # # Map the database columns to the corresponding dictionary keys.
+        # # Event_Id is retained here to match your original code.
+        # data_keys = [
+        #     "Record_Id",
+        #     "Device_Id",
+        #     "Data_Length",
+        #     "AC_Input_0",
+        #     "AC_Input_1",
+        #     "AC_Input_2",
+        #     "Suction_Temperature",
+        #     "Discharge_Temperature",
+        #     "EXP_IN_Temperature",
+        #     "EXP_OUT_Temperature",
+        #     "Ambient_Temperture",
+        #     "T6",
+        #     "T7",
+        #     "PCB_NTC",
+        #     "Flow_1",
+        #     "Flow_2",
+        #     "Output_Flag_1",
+        #     "Output_Flag_2",
+        #     "Output_Flag_3",
+        #     "Fan_Tach",
+        #     "Stepper_Position",
+        #     "Flow_Rate",
+        #     "Comp_Speed_Target",
+        #     "Comp_Speed_Actual",
+        #     "Discharge_Pressure",
+        #     "Suction_Pressure",
+        #     "Fan_Speed_Target",
+        #     "Superheat",
+        #     "Subcool",
+        #     "Pump_Speed_Target",
+        #     "System_Flow_Rate",
+        #     "State_Changes_Per_6s",
+        #     "Flow_Rate_L_Per_Min_Times_10",
+        #     "Sika_Flow_Rate",
+        #     "Evaporation_Temperature",
+        #     "Condensing_Temperature",
+        #     "System_Flow_Temperature",
+        #     "System_Return_Temperature",
+        #     "P_Flow_Setpoint",
+        #     "D_Ana_Val",
+        #     "Superheat_Error",
+        #     "Discharge_Temperature_Error",
+        #     "P_EEV_Start_Position",
+        #     "Fan_State",
+        #     "Comp_State",
+        #     "Comp_Timer",
+        #     "EEV_State",
+        #     "EEV_Timer",
+        #     "EEV_Threshold_Timer",
+        #     "Pump_APP_State",
+        #     "Pump_Timer",
+        #     "Demand_1",
+        #     "P_EEV_Open_Time",
+        #     "P_KP",
+        #     "P_Superheat_Error_Scalor",
+        #     "P_EEV_Threshold_Check_Time",
+        #     "P_Fan_Auto",
+        #     "pump_mode",
+        #     "pump_rpm_set",
+        #     "Time_stamp",
+        #     "Event_Id",
+        # ]
 
         # Create placeholders for all values
-        placeholders = ", ".join(["%s"] * len(columns))
+        placeholders = ", ".join(["%s"] * len(SIGNALS))
 
         # Build the INSERT statement
-        column_names = ", ".join(f"`{column}`" for column in columns)
+        column_names = ", ".join(
+            f"`{SIGNALS[i][1]}`" for i, column in enumerate(SIGNALS)
+        )
 
         # Update all columns except the unique-key columns
         update_columns = [
-            column for column in columns if column not in ("Device_Id", "Time_stamp")
+            SIGNALS[i][1]
+            for i, column in enumerate(SIGNALS)
+            if SIGNALS[i][1] not in ("Device_Id", "Time_stamp")
         ]
 
         update_query = ", ".join(
@@ -706,7 +711,7 @@ def rds_put_records(rd_connection_obj: dict, data) -> int:
             ON DUPLICATE KEY UPDATE {update_query}
         """
 
-        values = tuple(data[key] for key in data_keys)
+        values = tuple(data[i] for i, column in enumerate(SIGNALS))
 
         rd_connection_obj["cursor"].execute(query, values)
         rd_connection_obj["connection"].commit()
@@ -739,8 +744,7 @@ def insert_with_reconnect(conn, event):
 
 def stream_data(events):
     entries = [
-        {"Data": json.dumps(e).encode("utf-8"), "PartitionKey": e["Device_Id"]}
-        for e in events
+        {"Data": json.dumps(e).encode("utf-8"), "PartitionKey": e[1]} for e in events
     ]
     for i in range(0, len(entries), 500):
         chunk = entries[i : i + 500]
@@ -794,13 +798,14 @@ def poll_shards(
             for record in records_response["Records"]:
                 # print(record)
                 try:
-                    event = json.loads(record["Data"].decode("utf-8"))
+                    data = json.loads(record["Data"].decode("utf-8"))
+                    event = data["records"]
                     # print(event)
                     if (
                         not isinstance(event, dict)
-                        or not {"Event_Id", "Device_Id"} <= event.keys()
+                        # or not {"Event_Id", "Device_Id"} <= event.keys()
                     ):
-                        event["Event_Id"] = event["Event_Id"]
+                        event[60] = event[60]
                 except ValueError:
                     logging.exception(
                         "Skipping malformed record %s", record["SequenceNumber"]
@@ -815,12 +820,12 @@ def poll_shards(
                     try:
                         rds_connection = insert_with_reconnect(rds_connection, event)
                         logging.debug(
-                            f"--- Consumer Record Event-ID{event["Event_Id"]} from Shard {shard_itr.shard_id} Inserted into DB Successfully "
+                            f"--- Consumer Record Event-ID{event[60]} from Shard {shard_itr.shard_id} Inserted into DB Successfully "
                         )
                     except Exception:
                         # Policy choice: log and keep going. To avoid any DB loss, stop here
                         # and don't advance the iterator, so the batch is retried.
-                        logging.exception("RDS insert failed for %s", event["Event_Id"])
+                        logging.exception("RDS insert failed for %s", event[60])
 
                 if events:
                     stream_data(events)

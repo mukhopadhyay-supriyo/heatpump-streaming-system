@@ -5,3 +5,4 @@ pandas
 mysql-connector-python
 boto3
 dotenv
+pydantic
