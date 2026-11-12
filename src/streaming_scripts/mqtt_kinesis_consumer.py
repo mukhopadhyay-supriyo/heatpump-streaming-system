@@ -25,7 +25,7 @@ REGION = os.getenv("REGION")
 
 POLL_INTERVAL = 0.25  # stays under 5 GetRecords calls/sec per shard
 INSERT_EVERY = (
-    2  # keeps your original "every 4th record" behaviour; remove if unintended
+    1  # keeps your original "every 4th record" behaviour; remove if unintended
 )
 #################################### AWS ################################################
 
@@ -666,15 +666,15 @@ def poll_shards(
                 continue
             events = []
             for record in records_response["Records"]:
-                # print(record)
                 try:
+                    # print(record)
                     data = json.loads(record["Data"].decode("utf-8"))
                     event = data["records"]
                     # print(event[59])
                     # print(len(SIGNALS))
                     if (
                         not isinstance(event, dict)
-                        # or not {"Event_Id", "Device_Id"} <= event.keys()
+                        or not {"Event_Id", "Device_Id"} <= event.keys()
                     ):
                         event[len(SIGNALS) - 1] = event[len(SIGNALS) - 1]
                 except ValueError:

@@ -356,10 +356,10 @@ def datasource_transformation(dataList) -> Dict:
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
     timestamp = datetime.datetime.now()
-    records = [dataList[1]]
+    records = []
     records.append(f"{str(timestamp.microsecond) + deviceid}")
     records.append(f"{deviceid}")
-    records.append
+    records.append(dataList[1])
     for i in range(14, len(dataList)):
         records.append(dataList[i])
     records.append(f"{timestamp}")
@@ -371,7 +371,7 @@ def datasource_transformation(dataList) -> Dict:
             "records": records,
         }
 
-        # print(len(json_data))
+        # print(json_data)
         return json_data
     except Exception as e:
         logging.error(
