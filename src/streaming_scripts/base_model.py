@@ -61,9 +61,14 @@ SIGNALS: dict[int, tuple[str, str]] = {
     56: ("P_Fan_Auto", "P_Fan_Auto"),
     57: ("pump_mode", "pump_mode"),
     58: ("pump_rpm_set", "pump_rpm_set"),
-    59: ("Time_stamp", "Time_stamp"),
-    60: ("Event_Id", "SequenceNumber"),
+    59: ("Cond_Temp_Setpoint", "Cond_Temp_Setpoint"),
+    60: ("Cond_Temp_Error", "Cond_Temp_Error"),
+    61: ("Comp_P_Part", "Comp_P_Part"),
+    62: ("Comp_I_Part", "Comp_I_Part"),
+    63: ("Time_stamp", "Time_stamp"),
+    64: ("Event_Id", "SequenceNumber"),
 }
+
 
 # print(SIGNALS[0][0])
 
