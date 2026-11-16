@@ -235,8 +235,9 @@ def msgExtraction(_payloadHexArray_):
     __operationModeString__ = ""
     __hexCollectFlag__ = 0
     byteCounter = 0
+    # print(len(_payloadHexArray_))
     try:
-        if len(_payloadHexArray_) == 179:
+        if len(_payloadHexArray_) >= 191:
             for x in range(0, len(_payloadHexArray_)):
                 if byteCounter < 26:
                     if byteCounter < 2:
@@ -312,9 +313,11 @@ def msgExtraction(_payloadHexArray_):
                 byteCounter = byteCounter + 1
             # return dataList
         else:
-            raise Exception(
-                "Cannot process this data, as the length is less than expected length of 179 bytes"
-            )
+            dataList = []
+
+            # raise Exception(
+            #     "Cannot process this data, as the length is less than expected length of 191 bytes"
+            # )
 
     except Exception as e:
         dataList = []
@@ -352,18 +355,20 @@ def generate_event_id(deviceid, timestamp):
 
 
 def datasource_transformation(dataList) -> Dict:
+    
     deviceidAscii = [dataList[val] for val in range(2, 14)]
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
     timestamp = datetime.datetime.now()
     records = []
-    records.append(f"{str(timestamp.microsecond) + deviceid}")
-    records.append(f"{deviceid}")
-    records.append(dataList[1])
-    for i in range(14, len(dataList)):
-        records.append(dataList[i])
-    records.append(f"{timestamp}")
-    records.append(f"{generate_event_id(deviceid, timestamp)}")
+    if len(dataList) > 0:
+        records.append(f"{str(timestamp.microsecond) + deviceid}")
+        records.append(f"{deviceid}")
+        records.append(dataList[1])
+        for i in range(14, len(dataList)):
+            records.append(dataList[i])
+        records.append(f"{timestamp}")
+        records.append(f"{generate_event_id(deviceid, timestamp)}")
     try:
 
         json_data = {
