@@ -6,7 +6,7 @@ import sys
 import time
 import argparse
 import boto3
-import datetime
+from datetime import datetime, UTC
 import hashlib
 from dotenv import load_dotenv
 import os
@@ -355,11 +355,11 @@ def generate_event_id(deviceid, timestamp):
 
 
 def datasource_transformation(dataList) -> Dict:
-    
+
     deviceidAscii = [dataList[val] for val in range(2, 14)]
     deviceid = "".join(map(chr, deviceidAscii))
     json_data = {}
-    timestamp = datetime.datetime.now()
+    timestamp = datetime.now(UTC)
     records = []
     if len(dataList) > 0:
         records.append(f"{str(timestamp.microsecond) + deviceid}")
@@ -405,7 +405,8 @@ def on_message(client, userdata, msg):
     for j in range(0, len(payload), 2):
         _payloadHexArray_.append(payload[j : j + 2])
     dataList = msgExtraction(_payloadHexArray_)
-    if len(dataList) >= 70:
+    # print(len(dataList))
+    if len(dataList) >= 74:
         json_data = datasource_transformation(dataList=dataList)
         # logging.info(len(json_data))
         if json_data:
