@@ -13,7 +13,6 @@ from mysql.connector.errors import DatabaseError
 from dotenv import load_dotenv
 import os
 from typing import Dict, List
-import datetime
 from base_model import SIGNALS
 
 load_dotenv()
@@ -24,9 +23,6 @@ SECRETE_ACCESS_KEY = os.getenv("SECRETE_ACCESS_KEY")
 REGION = os.getenv("REGION")
 
 POLL_INTERVAL = 0.25  # stays under 5 GetRecords calls/sec per shard
-INSERT_EVERY = (
-    1  # keeps your original "every 4th record" behaviour; remove if unintended
-)
 #################################### AWS ################################################
 
 # Create AWS session with credentials. using boto3 lib
@@ -644,7 +640,6 @@ def poll_shards(
     logging.info(f"Polling shards---")
     consumer_response = ""
     records_response = None
-    records_since_insert = 0
     while True:
         for shard_itr in shard_iterators:
             try:
@@ -685,20 +680,17 @@ def poll_shards(
 
                 events.append(event)
                 shard_itr.last_sequence_number = record["SequenceNumber"]
-                records_since_insert += 1
-                if records_since_insert >= INSERT_EVERY:
-                    records_since_insert = 0
-                    try:
-                        rds_connection = insert_with_reconnect(rds_connection, event)
-                        logging.debug(
-                            f"--- Consumer Record Event-ID{event[len(SIGNALS) - 1]} from Shard {shard_itr.shard_id} Inserted into DB Successfully "
-                        )
-                    except Exception:
-                        # Policy choice: log and keep going. To avoid any DB loss, stop here
-                        # and don't advance the iterator, so the batch is retried.
-                        logging.exception(
-                            "RDS insert failed for %s", event[len(SIGNALS) - 1]
-                        )
+                try:
+                    rds_connection = insert_with_reconnect(rds_connection, event)
+                    logging.debug(
+                        f"--- Consumer Record Event-ID{event[len(SIGNALS) - 1]} from Shard {shard_itr.shard_id} Inserted into DB Successfully "
+                    )
+                except Exception:
+                    # Policy choice: log and keep going. To avoid any DB loss, stop here
+                    # and don't advance the iterator, so the batch is retried.
+                    logging.exception(
+                        "RDS insert failed for %s", event[len(SIGNALS) - 1]
+                    )
 
                 if events:
                     stream_data(events)
