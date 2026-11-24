@@ -22,7 +22,7 @@ ACCESS_KEY = os.getenv("ACCESS_KEY")
 SECRETE_ACCESS_KEY = os.getenv("SECRETE_ACCESS_KEY")
 REGION = os.getenv("REGION")
 
-POLL_INTERVAL = 0.25  # stays under 5 GetRecords calls/sec per shard
+POLL_INTERVAL = 0.50  # stays under 5 GetRecords calls/sec per shard
 #################################### AWS ################################################
 
 # Create AWS session with credentials. using boto3 lib
@@ -692,17 +692,17 @@ def poll_shards(
                         "RDS insert failed for %s", event[len(SIGNALS) - 1]
                     )
 
-                if events:
-                    stream_data(events)
+            # if events:
+            #     stream_data(events)
 
-                # Advance only after the whole batch was handled
-                if records_response["NextShardIterator"]:
-                    shard_itr.iterator = records_response["NextShardIterator"]
-                else:
-                    logging.info(
-                        "Shard %s is closed; no longer polling it", shard_itr.shard_id
-                    )
-                    shard_iterators.remove(shard_itr)
+            # Advance only after the whole batch was handled
+            if records_response["NextShardIterator"]:
+                shard_itr.iterator = records_response["NextShardIterator"]
+            else:
+                logging.info(
+                    "Shard %s is closed; no longer polling it", shard_itr.shard_id
+                )
+                shard_iterators.remove(shard_itr)
 
         time.sleep(POLL_INTERVAL)
 
